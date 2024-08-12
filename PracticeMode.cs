@@ -1025,7 +1025,7 @@ namespace MatchZy
                 Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices");
                 player.PlayerPawn.Value!.MoveType = MoveType_t.MOVETYPE_NONE;
                 player.PlayerPawn.Value!.ActualMoveType = MoveType_t.MOVETYPE_NONE;
-                
+
                 return HookResult.Continue;
             }
 
@@ -1299,7 +1299,6 @@ namespace MatchZy
                     if (IsValidPositionForLastGrenade(player, positionNumber))
                     {
                         positionNumber -= 1;
-                        if (player.MoveType == MoveType_t.MOVETYPE_NOCLIP) player.ExecuteClientCommandFromServer("noclip");
                         lastGrenadesData[userId][positionNumber].LoadPosition(player);
                         // PrintToPlayerChat(player, $"Teleported to grenade of history position: {positionNumber+1}/{lastGrenadesData[userId].Count}");
                         PrintToPlayerChat(player, Localizer["matchzy.pm.tptogrenade", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
@@ -1464,7 +1463,6 @@ namespace MatchZy
                 return;
             }
 
-            if (player.MoveType == MoveType_t.MOVETYPE_NOCLIP) player.ExecuteClientCommandFromServer("noclip");
             lastGrenadesData[userId].Last().LoadPosition(player);
         }
 
