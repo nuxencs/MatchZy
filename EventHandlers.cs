@@ -220,7 +220,7 @@ public partial class MatchZy
                     angle, 
                     velocity, 
                     player.PlayerPawn.Value.CBodyComponent!.SceneNode!.AbsOrigin, 
-                    player.PlayerPawn.Value.CBodyComponent!.SceneNode!.AbsRotation, 
+                    player.PlayerPawn.Value.EyeAngles,
                     nadeType,
                     DateTime.Now
                 );
@@ -239,6 +239,7 @@ public partial class MatchZy
                     CSmokeGrenadeProjectile smokeProjectile = new(entity.Handle);
                     smokeProjectile.SmokeColor.X = GetPlayerTeammateColor(player).R;
                     smokeProjectile.SmokeColor.Y = GetPlayerTeammateColor(player).G;
+                    smokeProjectile.SmokeColor.Y = GetPlayerTeammateColor(player).B;
                 }
             });
         }

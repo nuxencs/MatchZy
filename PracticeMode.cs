@@ -1299,6 +1299,7 @@ namespace MatchZy
                     if (IsValidPositionForLastGrenade(player, positionNumber))
                     {
                         positionNumber -= 1;
+                        if (player.MoveType == MoveType_t.MOVETYPE_NOCLIP) player.ExecuteClientCommandFromServer("noclip");
                         lastGrenadesData[userId][positionNumber].LoadPosition(player);
                         // PrintToPlayerChat(player, $"Teleported to grenade of history position: {positionNumber+1}/{lastGrenadesData[userId].Count}");
                         PrintToPlayerChat(player, Localizer["matchzy.pm.tptogrenade", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
@@ -1462,6 +1463,8 @@ namespace MatchZy
                 PrintToPlayerChat(player, Localizer["matchzy.pm.notthrownnade"]);
                 return;
             }
+
+            if (player.MoveType == MoveType_t.MOVETYPE_NOCLIP) player.ExecuteClientCommandFromServer("noclip");
             lastGrenadesData[userId].Last().LoadPosition(player);
         }
 
