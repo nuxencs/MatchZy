@@ -39,7 +39,7 @@ public class GrenadeThrownData
     public void LoadPosition(CCSPlayerController player)
     {
         if (player == null || player.PlayerPawn.Value == null) return;
-        player.PlayerPawn.Value!.MoveType = PlayerMoveType;
+        player.PlayerPawn.Value.MoveType = PlayerMoveType;
         player.PlayerPawn.Value.Teleport(PlayerPosition, PlayerAngle, new Vector(0, 0, 0));
     }
 
