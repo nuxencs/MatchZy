@@ -4,6 +4,7 @@ using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Text.Json;
@@ -1087,6 +1088,8 @@ namespace MatchZy
                 if(!IsPlayerValid(playerData[key])) continue;
                 preFastForwardMoveTypes[key] = playerData[key].PlayerPawn.Value!.MoveType;
                 playerData[key].PlayerPawn.Value!.MoveType = MoveType_t.MOVETYPE_NONE;
+                Schema.SetSchemaValue(playerData[key].PlayerPawn.Value!.Handle, "CBaseEntity", "m_nActualMoveType", 0);
+                Utilities.SetStateChanged(playerData[key].PlayerPawn.Value!, "CBaseEntity", "m_MoveType");
             }
 
             Server.PrintToChatAll($"{chatPrefix} Fastforwarding 20 seconds!");
@@ -1109,6 +1112,8 @@ namespace MatchZy
             foreach (var key in playerData.Keys) {
                 if(!IsPlayerValid(playerData[key])) continue;
                 playerData[key].PlayerPawn.Value!.MoveType = preFastForwardMoveTypes[key];
+                Schema.SetSchemaValue(playerData[key].PlayerPawn.Value!.Handle, "CBaseEntity", "m_nActualMoveType", 2);
+                Utilities.SetStateChanged(playerData[key].PlayerPawn.Value!, "CBaseEntity", "m_MoveType");
             }
         }
 
