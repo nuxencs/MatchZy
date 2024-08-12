@@ -14,6 +14,8 @@ public class GrenadeThrownData
     public Vector PlayerPosition { get; private set; }
 
     public QAngle PlayerAngle { get; private set; }
+    
+    public MoveType_t PlayerMoveType { get; private set; }
 
     public string Type { get; private set; }
 
@@ -21,13 +23,14 @@ public class GrenadeThrownData
 
     public float Delay { get; set; }
 
-    public GrenadeThrownData(Vector nadePosition, QAngle nadeAngle, Vector nadeVelocity, Vector playerPosition, QAngle playerAngle, string grenadeType, DateTime thrownTime)
+    public GrenadeThrownData(Vector nadePosition, QAngle nadeAngle, Vector nadeVelocity, Vector playerPosition, QAngle playerAngle, MoveType_t playerMoveType, string grenadeType, DateTime thrownTime)
     {
         Position = new Vector(nadePosition.X, nadePosition.Y, nadePosition.Z);
         Angle = new QAngle(nadeAngle.X, nadeAngle.Y, nadeAngle.Z);
         Velocity = new Vector(nadeVelocity.X, nadeVelocity.Y, nadeVelocity.Z);
         PlayerPosition = new Vector(playerPosition.X, playerPosition.Y, playerPosition.Z);
         PlayerAngle = new QAngle(playerAngle.X, playerAngle.Y, playerAngle.Z);
+        PlayerMoveType = playerMoveType;
         Type = grenadeType;
         ThrownTime = thrownTime;
         Delay = 0;
@@ -36,10 +39,7 @@ public class GrenadeThrownData
     public void LoadPosition(CCSPlayerController player)
     {
         if (player == null || player.PlayerPawn.Value == null) return;
-
-        player.PlayerPawn.Value!.MoveType = MoveType_t.MOVETYPE_NONE;
-        player.PlayerPawn.Value!.ActualMoveType = MoveType_t.MOVETYPE_NONE;
-
+        player.PlayerPawn.Value!.MoveType = PlayerMoveType;
         player.PlayerPawn.Value.Teleport(PlayerPosition, PlayerAngle, new Vector(0, 0, 0));
     }
 
