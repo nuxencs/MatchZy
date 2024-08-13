@@ -1087,6 +1087,7 @@ namespace MatchZy
             foreach (var key in playerData.Keys) {
                 if(!IsPlayerValid(playerData[key])) continue;
                 preFastForwardMoveTypes[key] = playerData[key].PlayerPawn.Value!.MoveType;
+                playerData[key].ExecuteClientCommandFromServer("noclip 0");
                 playerData[key].PlayerPawn.Value!.MoveType = MoveType_t.MOVETYPE_NONE;
                 Schema.SetSchemaValue(playerData[key].PlayerPawn.Value!.Handle, "CBaseEntity", "m_nActualMoveType", 0);
                 Utilities.SetStateChanged(playerData[key].PlayerPawn.Value!, "CBaseEntity", "m_MoveType");
@@ -1112,7 +1113,7 @@ namespace MatchZy
             foreach (var key in playerData.Keys) {
                 if(!IsPlayerValid(playerData[key])) continue;
                 playerData[key].PlayerPawn.Value!.MoveType = preFastForwardMoveTypes[key];
-                Schema.SetSchemaValue(playerData[key].PlayerPawn.Value!.Handle, "CBaseEntity", "m_nActualMoveType", 2);
+                Schema.SetSchemaValue(playerData[key].PlayerPawn.Value!.Handle, "CBaseEntity", "m_nActualMoveType", (int)preFastForwardMoveTypes[key]);
                 Utilities.SetStateChanged(playerData[key].PlayerPawn.Value!, "CBaseEntity", "m_MoveType");
             }
         }
