@@ -40,9 +40,11 @@ public class GrenadeThrownData
     public void LoadPosition(CCSPlayerController player)
     {
         if (player == null || player.PlayerPawn.Value == null) return;
-        player.PlayerPawn.Value.MoveType = PlayerMoveType;
+        player.PrintToChat($"{PlayerMoveType}");
+        player.PlayerPawn.Value.MoveType = MoveType_t.MOVETYPE_WALK;
         Schema.SetSchemaValue(player.PlayerPawn.Value.Handle, "CBaseEntity", "m_nActualMoveType", 2);
         Utilities.SetStateChanged(player.PlayerPawn.Value, "CBaseEntity", "m_MoveType");
+        player.PrintToChat($"{PlayerMoveType}");
         player.PlayerPawn.Value.Teleport(PlayerPosition, PlayerAngle, new Vector(0, 0, 0));
     }
 
