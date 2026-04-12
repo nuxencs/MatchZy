@@ -40,7 +40,7 @@
     "matchzy.cc.enabled": "{green}Enabled{default}",
     "matchzy.cc.disabled": "{red}Disabled{default}",
     "matchzy.cc.usage": "Usage: {0}",
-    "matchzy.cc.invalidmap": "Invalid map name!",
+    "matchzy.cc.invalidmap": "Nom de carte invalide !",
     "matchzy.cc.multiplemaps": "Plusieurs correspondances pour \"{0}\" : {1}. Utilisez un nom plus long.",
     "matchzy.cc.globalnades": "Saving/Loading Lineups Globally is now {0}!",
     "matchzy.cc.wl": "Whitelist is now {0}!",
