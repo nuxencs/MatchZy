@@ -225,16 +225,16 @@ namespace MatchZy
         {
             if (!isPractice || !IsPlayerValid(player)) return;
             if (teamNum != 2 && teamNum != 3) return;
+            if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (!string.IsNullOrWhiteSpace(commandArg))
             {
                 if (int.TryParse(commandArg, out int spawnNumber) && spawnNumber >= 1)
                 {
                     // Adjusting the spawnNumber according to the array index.
                     spawnNumber -= 1;
-                    if (spawnsData.ContainsKey(teamNum) && spawnsData[teamNum].Count <= spawnNumber) return;
-                    player!.PlayerPawn.Value!.Teleport(spawnsData[teamNum][spawnNumber].PlayerPosition, spawnsData[teamNum][spawnNumber].PlayerAngle, new Vector(0, 0, 0));
+                    if (!TryTeleportPlayerToSpawn(player!, teamNum, spawnNumber, out int spawnCount)) return;
                     // ReplyToUserCommand(player, $"Moved to spawn: {spawnNumber+1}/{spawnsData[teamNum].Count}");
-                    ReplyToUserCommand(player, Localizer["matchzy.pm.movedtospawn", $"{spawnNumber + 1}/{spawnsData[teamNum].Count}"]);
+                    ReplyToUserCommand(player, Localizer["matchzy.pm.movedtospawn", $"{spawnNumber + 1}/{spawnCount}"]);
                 }
                 else
                 {
@@ -245,8 +245,8 @@ namespace MatchZy
             }
             else
             {
-                // ReplyToUserCommand(player, $"Usage: !{command} <number>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!{command} <number>"]);
+                if (!TryTeleportPlayerToBestSpawn(player!, teamNum, out int closestIndex, out int spawnCount)) return;
+                ReplyToUserCommand(player, Localizer["matchzy.pm.movedtospawn", $"{closestIndex + 1}/{spawnCount}"]);
             }
         }
 
@@ -831,60 +831,27 @@ namespace MatchZy
         public void OnSpawnCommand(CCSPlayerController? player, CommandInfo command)
         {
             if (!isPractice) return;
-            // Checking if any of the Position List is empty
-            if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (player == null || !player.PlayerPawn.IsValid) return;
-
-            if (command.ArgCount >= 2)
-            {
-                string commandArg = command.ArgByIndex(1);
-                HandleSpawnCommand(player, commandArg, player.TeamNum, "spawn");
-            }
-            else
-            {
-                // ReplyToUserCommand(player, $"Usage: !spawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!spawn <round>"]);
-            }
+            string commandArg = command.ArgCount >= 2 ? command.ArgByIndex(1) : string.Empty;
+            HandleSpawnCommand(player, commandArg, player.TeamNum, "spawn");
         }
 
         [ConsoleCommand("css_ctspawn", "Teleport to provided CT spawn")]
         public void OnCtSpawnCommand(CCSPlayerController? player, CommandInfo command)
         {
             if (!isPractice) return;
-            // Checking if any of the Position List is empty
-            if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (player == null || !player.PlayerPawn.IsValid) return;
-
-            if (command.ArgCount >= 2)
-            {
-                string commandArg = command.ArgByIndex(1);
-                HandleSpawnCommand(player, commandArg, (byte)CsTeam.CounterTerrorist, "ctspawn");
-            }
-            else
-            {
-                // ReplyToUserCommand(player, $"Usage: !ctspawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!ctspawn <round>"]);
-            }
+            string commandArg = command.ArgCount >= 2 ? command.ArgByIndex(1) : string.Empty;
+            HandleSpawnCommand(player, commandArg, (byte)CsTeam.CounterTerrorist, "ctspawn");
         }
 
         [ConsoleCommand("css_tspawn", "Teleport to provided T spawn")]
         public void OnTSpawnCommand(CCSPlayerController? player, CommandInfo command)
         {
             if (!isPractice) return;
-            // Checking if any of the Position List is empty
-            if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (player == null || !player.PlayerPawn.IsValid) return;
-
-            if (command.ArgCount >= 2)
-            {
-                string commandArg = command.ArgByIndex(1);
-                HandleSpawnCommand(player, commandArg, (byte)CsTeam.Terrorist, "tspawn");
-            }
-            else
-            {
-                // ReplyToUserCommand(player, $"Usage: !ctspawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!ctspawn <round>"]);
-            }
+            string commandArg = command.ArgCount >= 2 ? command.ArgByIndex(1) : string.Empty;
+            HandleSpawnCommand(player, commandArg, (byte)CsTeam.Terrorist, "tspawn");
         }
 
         [ConsoleCommand("css_bot", "Spawns a bot at the player's position")]
@@ -1778,22 +1745,7 @@ namespace MatchZy
 
         public void TeleportPlayerToBestSpawn(CCSPlayerController player, byte teamNum)
         {
-            if (!spawnsData.TryGetValue(teamNum, out List<Position>? teamSpawns)) return;
-            Vector playerPosition = player!.PlayerPawn!.Value!.CBodyComponent!.SceneNode!.AbsOrigin;
-            int closestIndex = -1;
-            double minDistance = double.MaxValue;
-            for (int index = 0; index < teamSpawns.Count; index++)
-            {
-                Vector spawnPosition = teamSpawns[index].PlayerPosition;
-                Vector diff = playerPosition - spawnPosition;
-                float distance = diff.Length();
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    closestIndex = index;
-                }
-            }
-            player!.PlayerPawn.Value!.Teleport(teamSpawns[closestIndex].PlayerPosition, teamSpawns[closestIndex].PlayerAngle, new Vector(0, 0, 0));
+            TryTeleportPlayerToBestSpawn(player, teamNum, out _, out _);
         }
 
         public void TeleportPlayerToWorstSpawn(CCSPlayerController player, byte teamNum)
@@ -1814,6 +1766,45 @@ namespace MatchZy
                 }
             }
             player!.PlayerPawn.Value!.Teleport(teamSpawns[farthestIndex].PlayerPosition, teamSpawns[farthestIndex].PlayerAngle, new Vector(0, 0, 0));
+        }
+
+        private bool TryTeleportPlayerToSpawn(CCSPlayerController player, byte teamNum, int spawnIndex, out int spawnCount)
+        {
+            spawnCount = 0;
+            if (!spawnsData.TryGetValue(teamNum, out List<Position>? teamSpawns)) return false;
+            spawnCount = teamSpawns.Count;
+            if (spawnIndex < 0 || spawnIndex >= spawnCount) return false;
+
+            player.PlayerPawn.Value!.Teleport(teamSpawns[spawnIndex].PlayerPosition, teamSpawns[spawnIndex].PlayerAngle, new Vector(0, 0, 0));
+            return true;
+        }
+
+        private bool TryTeleportPlayerToBestSpawn(CCSPlayerController player, byte teamNum, out int closestIndex, out int spawnCount)
+        {
+            closestIndex = -1;
+            spawnCount = 0;
+            if (!spawnsData.TryGetValue(teamNum, out List<Position>? teamSpawns)) return false;
+            spawnCount = teamSpawns.Count;
+            if (spawnCount == 0) return false;
+
+            Vector playerPosition = player.PlayerPawn!.Value!.CBodyComponent!.SceneNode!.AbsOrigin;
+            double minDistance = double.MaxValue;
+            for (int index = 0; index < teamSpawns.Count; index++)
+            {
+                Vector spawnPosition = teamSpawns[index].PlayerPosition;
+                Vector diff = playerPosition - spawnPosition;
+                float distance = diff.Length();
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestIndex = index;
+                }
+            }
+
+            if (closestIndex < 0) return false;
+
+            player.PlayerPawn.Value!.Teleport(teamSpawns[closestIndex].PlayerPosition, teamSpawns[closestIndex].PlayerAngle, new Vector(0, 0, 0));
+            return true;
         }
 
         // Todo: Implement timer2 when we have OnPlayerRunCmd in CS#. Using OnTick would be its alternative, but it would be very expensive and not worth it.

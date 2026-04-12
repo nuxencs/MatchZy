@@ -16,9 +16,9 @@ Most of the commands can also be used using ! prefix instead of . (like !ready)
 
 # Practice Mode Commands
 
-- `.spawn <number>` Spawns to the provided competitive spawn number of same team
-- `.ctspawn <number>` Spawns to the provided competitive spawn number of CT (Alias: `.cts`)
-- `.tspawn <number>` Spawns to the provided competitive spawn number of T (Alias: `.ts`)
+- `.spawn <optional number>` Spawns to the provided competitive spawn number of same team, or to the closest spawn of same team if no number is provided
+- `.ctspawn <optional number>` Spawns to the provided competitive spawn number of CT, or to the closest CT spawn if no number is provided (Alias: `.cts`)
+- `.tspawn <optional number>` Spawns to the provided competitive spawn number of T, or to the closest T spawn if no number is provided (Alias: `.ts`)
 - `.bestspawn` Teleports you to your team's closest spawn from your current position
 - `.worstspawn` Teleports you to your team's furthest spawn from your current position
 - `.bestctspawn` Teleports you to CT team's closest spawn from your current position
