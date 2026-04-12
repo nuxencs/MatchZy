@@ -35,6 +35,7 @@
   "matchzy.cc.disabled": "{red}Letiltva{default}",
   "matchzy.cc.usage": "Használat: {0}",
   "matchzy.cc.invalidmap": "Érvénytelen térképnév!",
+  "matchzy.cc.multiplemaps": "Több találat erre: \"{0}\": {1}. Használj hosszabb nevet.",
   "matchzy.cc.globalnades": "A Lineupok globális mentése/betöltése most {0}!",
   "matchzy.cc.wl": "A fehérlista most {0}!",
   "matchzy.cc.playout": "A playout most {0}!",

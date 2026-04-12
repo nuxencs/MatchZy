@@ -627,24 +627,78 @@ namespace MatchZy
                 return;
             }
 
-            if (!long.TryParse(mapName, out _) && !mapName.Contains('_'))
-            {
-                mapName = "de_" + mapName;
-            }
+            mapName = mapName.Trim();
 
             if (long.TryParse(mapName, out _))
             { // Check if mapName is a long for workshop map ids
                 Server.ExecuteCommand($"bot_kick");
                 Server.ExecuteCommand($"host_workshop_map \"{mapName}\"");
+                return;
             }
-            else if (Server.IsMapValid(mapName))
+
+            string[] availableMaps;
+            try
+            {
+                availableMaps = Server.GetMapList();
+            }
+            catch
+            {
+                availableMaps = [];
+            }
+
+            string? resolved = null;
+            bool allowDePrefix = !mapName.Contains('_');
+
+            foreach (string candidate in availableMaps)
+            {
+                if (candidate.Equals(mapName, StringComparison.OrdinalIgnoreCase) ||
+                    (allowDePrefix && candidate.Equals("de_" + mapName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    resolved = candidate;
+                    break;
+                }
+            }
+
+            List<string> containsMatches = [];
+            if (resolved == null)
+            {
+                foreach (string candidate in availableMaps)
+                {
+                    if (candidate.Contains(mapName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        containsMatches.Add(candidate);
+                    }
+                }
+                if (containsMatches.Count == 1)
+                {
+                    resolved = containsMatches[0];
+                }
+            }
+
+            if (resolved == null && containsMatches.Count == 0)
+            {
+                if (Server.IsMapValid(mapName))
+                {
+                    resolved = mapName;
+                }
+                else if (allowDePrefix && Server.IsMapValid("de_" + mapName))
+                {
+                    resolved = "de_" + mapName;
+                }
+            }
+
+            if (resolved != null)
             {
                 Server.ExecuteCommand($"bot_kick");
-                Server.ExecuteCommand($"changelevel \"{mapName}\"");
+                Server.ExecuteCommand($"changelevel \"{resolved}\"");
+            }
+            else if (containsMatches.Count > 1)
+            {
+                ReplyToUserCommand(player, Localizer["matchzy.cc.multiplemaps", mapName, string.Join(", ", containsMatches)]);
             }
             else
             {
-                ReplyToUserCommand(player, $"Invalid map name!");
+                ReplyToUserCommand(player, Localizer["matchzy.cc.invalidmap"]);
             }
         }
 

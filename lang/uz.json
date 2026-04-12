@@ -41,6 +41,7 @@
   "matchzy.cc.disabled": "{red}Oʻchirilgan{default}",
   "matchzy.cc.usage": "Foydalanish: {0}",
   "matchzy.cc.invalidmap": "Xarita nomi noto‘g‘ri!",
+  "matchzy.cc.multiplemaps": "\"{0}\" uchun bir nechta moslik topildi: {1}. Uzunroq nom ishlating.",
   "matchzy.cc.globalnades": "Chiziqlarni saqlash/yuklash hozir {0}!",
   "matchzy.cc.wl": "Oq roʻyxat hozir {0}!",
   "matchzy.cc.playout": "Playout hozir {0}!",

@@ -74,7 +74,7 @@ Most of the commands can also be used using ! prefix instead of . (like !ready)
 - `.whitelist` Toggles whitelisting of players. To whitelist a player, add the steam64id in `cfg/MatchZy/whitelist.cfg`
 - `.readyrequired <number>` Sets the number of ready players required to start the match. If set to 0, all connected players will have to ready-up to start the match.
 - `.settings` Displays the current setting, like whether knife is enabled or not, value of readyrequired  players, etc.
-- `.map <mapname>` Changes the map
+- `.map <mapname>` Changes the map. Partial map names work if the match is unique.
 - `.asay <message>` Say as an admin in all chat
 - `.reload_admins` Reloads admins from `admins.json`
 - `.team1 <name>` Sets name for Team 1 (CT by default)

@@ -41,6 +41,7 @@
   "matchzy.cc.disabled": "{red}已關閉{default}",
   "matchzy.cc.usage": "使用示例: {0}",
   "matchzy.cc.invalidmap": "不合法的地圖名稱！",
+  "matchzy.cc.multiplemaps": "\"{0}\" 有多個符合項目：{1}。請使用較長的名稱。",
   "matchzy.cc.globalnades": "Saving/Loading Lineups Globally is now {0}!",
   "matchzy.cc.wl": "Whitelist is now {0}!",
   "matchzy.cc.playout": "Playout is now {0}!",

@@ -41,6 +41,7 @@
   "matchzy.cc.disabled": "{red}Deshabilitado{default}",
   "matchzy.cc.usage": "Uso: {0}",
   "matchzy.cc.invalidmap": "¡Nombre de mapa inválido!",
+  "matchzy.cc.multiplemaps": "Varias coincidencias para \"{0}\": {1}. Usa un nombre más largo.",
   "matchzy.cc.globalnades": "¡Guardar/Cargar Lineups Globalmente está ahora {0}!",
   "matchzy.cc.wl": "¡Lista blanca (Whitelist) está ahora {0}!",
   "matchzy.cc.playout": "¡Playout está ahora {0}!",

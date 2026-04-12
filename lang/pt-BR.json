@@ -41,6 +41,7 @@
   "matchzy.cc.disabled": "{darkred}Desabilitado{default}",
   "matchzy.cc.usage": "Use: {0}",
   "matchzy.cc.invalidmap": "Nome do mapa inválido!",
+  "matchzy.cc.multiplemaps": "Várias correspondências para \"{0}\": {1}. Use um nome mais longo.",
   "matchzy.cc.globalnades": "Salvar/Carregar Posições Globalmente agora está {0}!",
   "matchzy.cc.wl": "Whitelist agora está {0}!",
   "matchzy.cc.playout": "Playout agora está {0}!",

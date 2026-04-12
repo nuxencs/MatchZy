@@ -41,6 +41,7 @@
   "matchzy.cc.disabled": "{red}無効{default}",
   "matchzy.cc.usage": "使用法: {0}",
   "matchzy.cc.invalidmap": "マップ名が無効です！",
+  "matchzy.cc.multiplemaps": "「{0}」に複数の一致があります: {1}。より長い名前を指定してください。",
   "matchzy.cc.globalnades": "ラインナップのグローバルな保存/読み込みは現在 {0} です!",
   "matchzy.cc.wl": "ホワイトリストは現在 {0} です。",
   "matchzy.cc.playout": "プレイアウトは現在 {0} です!",
