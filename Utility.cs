@@ -636,15 +636,7 @@ namespace MatchZy
                 return;
             }
 
-            string[] availableMaps;
-            try
-            {
-                availableMaps = Server.GetMapList();
-            }
-            catch
-            {
-                availableMaps = [];
-            }
+            string[] availableMaps = GetAvailableMaps();
 
             string? resolved = null;
             bool allowDePrefix = !mapName.Contains('_');
@@ -699,6 +691,60 @@ namespace MatchZy
             else
             {
                 ReplyToUserCommand(player, Localizer["matchzy.cc.invalidmap"]);
+            }
+        }
+
+        private string[] GetAvailableMaps()
+        {
+            string[] availableMaps = [];
+
+            try
+            {
+                availableMaps = Server.GetMapList();
+            }
+            catch (Exception ex)
+            {
+                Log($"[GetAvailableMaps] Server.GetMapList failed: {ex.Message}");
+            }
+
+            if (availableMaps.Length > 0)
+            {
+                return availableMaps;
+            }
+
+            string mapsDirectoryPath = Path.Join(Server.GameDirectory, "csgo", "maps");
+            if (!Directory.Exists(mapsDirectoryPath))
+            {
+                Log($"[GetAvailableMaps] Maps directory not found: {mapsDirectoryPath}");
+                return [];
+            }
+
+            try
+            {
+                string[] discoveredMaps = Directory
+                    .EnumerateFiles(mapsDirectoryPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(filePath =>
+                    {
+                        string extension = Path.GetExtension(filePath);
+                        return extension.Equals(".vpk", StringComparison.OrdinalIgnoreCase) ||
+                            extension.Equals(".bsp", StringComparison.OrdinalIgnoreCase);
+                    })
+                    .Select(Path.GetFileNameWithoutExtension)
+                    .Where(map => !string.IsNullOrWhiteSpace(map))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()!;
+
+                if (discoveredMaps.Length > 0)
+                {
+                    Log($"[GetAvailableMaps] Falling back to directory parsing. Found {discoveredMaps.Length} maps in {mapsDirectoryPath}");
+                }
+
+                return discoveredMaps;
+            }
+            catch (Exception ex)
+            {
+                Log($"[GetAvailableMaps] Failed to parse maps directory {mapsDirectoryPath}: {ex.Message}");
+                return [];
             }
         }
 
