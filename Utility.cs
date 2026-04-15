@@ -642,6 +642,11 @@ namespace MatchZy
             }
 
             mapName = mapName.Trim();
+            if (string.IsNullOrWhiteSpace(mapName))
+            {
+                ReplyToUserCommand(player, Localizer["matchzy.cc.invalidmap"]);
+                return;
+            }
 
             if (long.TryParse(mapName, out _))
             { // Check if mapName is a long for workshop map ids
