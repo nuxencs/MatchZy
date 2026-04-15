@@ -1296,7 +1296,7 @@ namespace MatchZy
             AddTimer(grenadeThrown.Delay, () => grenadeThrown.Throw(player));
         }
 
-        public void HandleBackCommand(CCSPlayerController player, string number)
+        public void HandleBackCommand(CCSPlayerController? player, string number)
         {
             if (!isPractice || player == null || !player.UserId.HasValue) return;
             int userId = player.UserId.Value;
@@ -1327,7 +1327,7 @@ namespace MatchZy
             }
         }
 
-        public void HandleThrowIndexCommand(CCSPlayerController player, string argString)
+        public void HandleThrowIndexCommand(CCSPlayerController? player, string argString)
         {
             if (!isPractice || !IsPlayerValid(player)) return;
             int userId = player!.UserId!.Value;
@@ -1363,7 +1363,7 @@ namespace MatchZy
             }
         }
 
-        public void HandleDelayCommand(CCSPlayerController player, string delay)
+        public void HandleDelayCommand(CCSPlayerController? player, string delay)
         {
             if (!isPractice || !IsPlayerValid(player)) return;
 

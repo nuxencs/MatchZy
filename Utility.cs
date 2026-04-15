@@ -769,6 +769,35 @@ namespace MatchZy
             }
         }
 
+        private void HandleAdminSayCommand(CCSPlayerController? player, string message)
+        {
+            if (!IsPlayerAdmin(player, "css_asay", "@css/chat"))
+            {
+                SendPlayerNotAdminMessage(player);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                Server.PrintToChatAll($"{adminChatPrefix} {message}");
+                return;
+            }
+
+            ReplyToUserCommand(player, Localizer["matchzy.cc.usage", ".asay <message>"]);
+        }
+
+        private void HandleRconCommand(CCSPlayerController? player, string commandArg)
+        {
+            if (!IsPlayerAdmin(player, "css_rcon", "@css/rcon"))
+            {
+                SendPlayerNotAdminMessage(player);
+                return;
+            }
+
+            Server.ExecuteCommand(commandArg);
+            ReplyToUserCommand(player, "Command sent successfully!");
+        }
+
         private void CheckLiveRequired()
         {
             if (!readyAvailable || matchStarted) return;

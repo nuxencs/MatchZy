@@ -80,6 +80,7 @@ namespace MatchZy
 
         // User command - action map
         public Dictionary<string, Action<CCSPlayerController?, CommandInfo?>>? commandActions;
+        public Dictionary<string, Action<CCSPlayerController?, string>>? chatCommandActions;
 
         // SQLite/MySQL Database 
         private Database database = new();
@@ -203,6 +204,39 @@ namespace MatchZy
                 { ".worsttspawn", OnWorstTSpawnCommand },
                 { ".savepos", OnSavePosCommand},
                 { ".loadpos", OnLoadPosCommand}
+            };
+
+            chatCommandActions = new Dictionary<string, Action<CCSPlayerController?, string>> {
+                { ".map", HandleMapChangeCommand },
+                { ".readyrequired", HandleReadyRequiredCommand },
+                { ".restore", HandleRestoreCommand },
+                { ".asay", HandleAdminSayCommand },
+                { ".savenade", HandleSaveNadeCommand },
+                { ".sn", HandleSaveNadeCommand },
+                { ".delnade", HandleDeleteNadeCommand },
+                { ".dn", HandleDeleteNadeCommand },
+                { ".deletenade", HandleDeleteNadeCommand },
+                { ".importnade", HandleImportNadeCommand },
+                { ".in", HandleImportNadeCommand },
+                { ".listnades", HandleListNadesCommand },
+                { ".lin", HandleListNadesCommand },
+                { ".loadnade", HandleLoadNadeCommand },
+                { ".ln", HandleLoadNadeCommand },
+                { ".spawn", (player, commandArg) => HandleSpawnCommand(player, commandArg, player?.TeamNum ?? 0, "spawn") },
+                { ".ctspawn", (player, commandArg) => HandleSpawnCommand(player, commandArg, (byte)CsTeam.CounterTerrorist, "ctspawn") },
+                { ".cts", (player, commandArg) => HandleSpawnCommand(player, commandArg, (byte)CsTeam.CounterTerrorist, "ctspawn") },
+                { ".tspawn", (player, commandArg) => HandleSpawnCommand(player, commandArg, (byte)CsTeam.Terrorist, "tspawn") },
+                { ".ts", (player, commandArg) => HandleSpawnCommand(player, commandArg, (byte)CsTeam.Terrorist, "tspawn") },
+                { ".team1", (player, commandArg) => HandleTeamNameChangeCommand(player, commandArg, 1) },
+                { ".team2", (player, commandArg) => HandleTeamNameChangeCommand(player, commandArg, 2) },
+                { ".rcon", HandleRconCommand },
+                { ".coach", HandleCoachCommand },
+                { ".ban", HandeMapBanCommand },
+                { ".pick", HandeMapPickCommand },
+                { ".back", HandleBackCommand },
+                { ".delay", HandleDelayCommand },
+                { ".throwindex", HandleThrowIndexCommand },
+                { ".throwidx", HandleThrowIndexCommand }
             };
 
             RegisterEventHandler<EventPlayerConnectFull>(EventPlayerConnectFullHandler);
@@ -372,11 +406,11 @@ namespace MatchZy
                 var playerUserId = NativeAPI.GetUseridFromIndex(index);
 
                 var originalMessage = @event.Text.Trim();
-                var message = @event.Text.Trim().ToLower();
+                var message = originalMessage.ToLowerInvariant();
 
-                var parts = originalMessage.Split(' ');
-                var messageCommand = parts.Length > 0 ? parts[0] : string.Empty;
-                var messageCommandArg = parts.Length > 1 ? string.Join(' ', parts.Skip(1)) : string.Empty;
+                var parts = originalMessage.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                var messageCommand = parts.Length > 0 ? parts[0].ToLowerInvariant() : string.Empty;
+                var messageCommandArg = parts.Length > 1 ? parts[1] : string.Empty;
 
                 CCSPlayerController? player = null;
                 if (playerData.TryGetValue(playerUserId, out CCSPlayerController? value)) {
@@ -390,125 +424,13 @@ namespace MatchZy
                 }
 
                 // Handling player commands
-                if (commandActions.ContainsKey(message)) {
-                    commandActions[message](player, null);
+                if (commandActions.TryGetValue(message, out var commandAction)) {
+                    commandAction(player, null);
                 }
 
-                if (message.StartsWith(".map"))
+                if (chatCommandActions.TryGetValue(messageCommand, out var chatCommandAction))
                 {
-                    HandleMapChangeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".readyrequired"))
-                {
-                    HandleReadyRequiredCommand(player, messageCommandArg);
-                }
-
-                if (message.StartsWith(".restore"))
-                {
-                    HandleRestoreCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".asay"))
-                {
-                    if (IsPlayerAdmin(player, "css_asay", "@css/chat"))
-                    {
-                        if (messageCommandArg != "")
-                        {
-                            Server.PrintToChatAll($"{adminChatPrefix} {messageCommandArg}");
-                        }
-                        else
-                        {
-                            // ReplyToUserCommand(player, "Usage: .asay <message>");
-                            ReplyToUserCommand(player, Localizer["matchzy.cc.usage", ".asay <message>"]);
-                        }
-                    }
-                    else
-                    {
-                        SendPlayerNotAdminMessage(player);
-                    }
-                }
-                if (message.StartsWith(".savenade") || message.StartsWith(".sn"))
-                {
-                    HandleSaveNadeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".delnade") || message.StartsWith(".dn"))
-                {
-                    HandleDeleteNadeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".deletenade"))
-                {
-                    HandleDeleteNadeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".importnade") || message.StartsWith(".in"))
-                {
-                    HandleImportNadeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".listnades") || message.StartsWith(".lin"))
-                {
-                    HandleListNadesCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".loadnade") || message.StartsWith(".ln"))
-                {
-                    HandleLoadNadeCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".spawn"))
-                {
-                    HandleSpawnCommand(player, messageCommandArg, player.TeamNum, "spawn");
-                }
-                if (message.StartsWith(".ctspawn") || message.StartsWith(".cts"))
-                {
-                    HandleSpawnCommand(player, messageCommandArg, (byte)CsTeam.CounterTerrorist, "ctspawn");
-                }
-                if (message.StartsWith(".tspawn") || message.StartsWith(".ts"))
-                {
-                    HandleSpawnCommand(player, messageCommandArg, (byte)CsTeam.Terrorist, "tspawn");
-                }
-                if (message.StartsWith(".team1"))
-                {
-                    HandleTeamNameChangeCommand(player, messageCommandArg, 1);
-                }
-                if (message.StartsWith(".team2"))
-                {
-                    HandleTeamNameChangeCommand(player, messageCommandArg, 2);
-                }
-                if (message.StartsWith(".rcon"))
-                {
-                    if (IsPlayerAdmin(player, "css_rcon", "@css/rcon"))
-                    {
-                        Server.ExecuteCommand(messageCommandArg);
-                        ReplyToUserCommand(player, "Command sent successfully!");
-                    }
-                    else
-                    {
-                        SendPlayerNotAdminMessage(player);
-                    }
-                }
-                if (message.StartsWith(".coach"))
-                {
-                    HandleCoachCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".ban"))
-                {
-                    HandeMapBanCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".pick"))
-                {
-                    HandeMapPickCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".back"))
-                {
-                    HandleBackCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".delay"))
-                {
-                    HandleDelayCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".throwindex"))
-                {
-                    HandleThrowIndexCommand(player, messageCommandArg);
-                }
-                if (message.StartsWith(".throwidx"))
-                {
-                    HandleThrowIndexCommand(player, messageCommandArg);
+                    chatCommandAction(player, messageCommandArg);
                 }
 
                 return HookResult.Continue;
