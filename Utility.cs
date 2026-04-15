@@ -21,6 +21,20 @@ namespace MatchZy
         public const string knifeCfgPath = "MatchZy/knife.cfg";
         public const string liveCfgPath = "MatchZy/live.cfg";
         public const string liveWingmanCfgPath = "MatchZy/live_wingman.cfg";
+        public const string mapsJsonPath = "MatchZy/maps.json";
+
+        private static readonly string[] defaultMapPool =
+        [
+            "de_ancient",
+            "de_anubis",
+            "de_dust2",
+            "de_inferno",
+            "de_mirage",
+            "de_nuke",
+            "de_overpass",
+            "de_train",
+            "de_vertigo"
+        ];
 
         private void PrintToAllChat(string message)
         {
@@ -636,38 +650,18 @@ namespace MatchZy
                 return;
             }
 
-            string[] availableMaps = GetAvailableMaps();
-
-            string? resolved = null;
             bool allowDePrefix = !mapName.Contains('_');
+            string? resolved = null;
+            List<string> matches = GetConfiguredMaps()
+                .Where(candidate => candidate.Contains(mapName, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            foreach (string candidate in availableMaps)
+            if (matches.Count == 1)
             {
-                if (candidate.Equals(mapName, StringComparison.OrdinalIgnoreCase) ||
-                    (allowDePrefix && candidate.Equals("de_" + mapName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    resolved = candidate;
-                    break;
-                }
+                resolved = matches[0];
             }
-
-            List<string> containsMatches = [];
-            if (resolved == null)
-            {
-                foreach (string candidate in availableMaps)
-                {
-                    if (candidate.Contains(mapName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        containsMatches.Add(candidate);
-                    }
-                }
-                if (containsMatches.Count == 1)
-                {
-                    resolved = containsMatches[0];
-                }
-            }
-
-            if (resolved == null && containsMatches.Count == 0)
+            else if (matches.Count == 0)
             {
                 if (Server.IsMapValid(mapName))
                 {
@@ -684,9 +678,9 @@ namespace MatchZy
                 Server.ExecuteCommand($"bot_kick");
                 Server.ExecuteCommand($"changelevel \"{resolved}\"");
             }
-            else if (containsMatches.Count > 1)
+            else if (matches.Count > 1)
             {
-                ReplyToUserCommand(player, Localizer["matchzy.cc.multiplemaps", mapName, string.Join(", ", containsMatches)]);
+                ReplyToUserCommand(player, Localizer["matchzy.cc.multiplemaps", mapName, string.Join(", ", matches)]);
             }
             else
             {
@@ -694,57 +688,47 @@ namespace MatchZy
             }
         }
 
-        private string[] GetAvailableMaps()
+        private string[] GetConfiguredMaps()
         {
-            string[] availableMaps = [];
+            string mapsConfigPath = Path.Join(Server.GameDirectory, "csgo", "cfg", mapsJsonPath);
 
-            try
+            if (!File.Exists(mapsConfigPath))
             {
-                availableMaps = Server.GetMapList();
-            }
-            catch (Exception ex)
-            {
-                Log($"[GetAvailableMaps] Server.GetMapList failed: {ex.Message}");
-            }
-
-            if (availableMaps.Length > 0)
-            {
-                return availableMaps;
-            }
-
-            string mapsDirectoryPath = Path.Join(Server.GameDirectory, "csgo", "maps");
-            if (!Directory.Exists(mapsDirectoryPath))
-            {
-                Log($"[GetAvailableMaps] Maps directory not found: {mapsDirectoryPath}");
-                return [];
-            }
-
-            try
-            {
-                string[] discoveredMaps = Directory
-                    .EnumerateFiles(mapsDirectoryPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(filePath =>
+                try
+                {
+                    string? directoryPath = Path.GetDirectoryName(mapsConfigPath);
+                    if (directoryPath != null && !Directory.Exists(directoryPath))
                     {
-                        string extension = Path.GetExtension(filePath);
-                        return extension.Equals(".vpk", StringComparison.OrdinalIgnoreCase) ||
-                            extension.Equals(".bsp", StringComparison.OrdinalIgnoreCase);
-                    })
-                    .Select(Path.GetFileNameWithoutExtension)
+                        Directory.CreateDirectory(directoryPath);
+                    }
+
+                    string defaultJson = JsonSerializer.Serialize(defaultMapPool, new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
+                    File.WriteAllText(mapsConfigPath, defaultJson);
+                    Log($"[GetConfiguredMaps] maps.json doesn't exist, creating default at {mapsConfigPath}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"[GetConfiguredMaps] Failed to create default maps.json at {mapsConfigPath}: {ex.Message}");
+                    return defaultMapPool;
+                }
+            }
+
+            try
+            {
+                string jsonContent = File.ReadAllText(mapsConfigPath);
+                string[] configuredMaps = JsonSerializer.Deserialize<string[]>(jsonContent) ?? [];
+                return configuredMaps
                     .Where(map => !string.IsNullOrWhiteSpace(map))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray()!;
-
-                if (discoveredMaps.Length > 0)
-                {
-                    Log($"[GetAvailableMaps] Falling back to directory parsing. Found {discoveredMaps.Length} maps in {mapsDirectoryPath}");
-                }
-
-                return discoveredMaps;
+                    .ToArray();
             }
             catch (Exception ex)
             {
-                Log($"[GetAvailableMaps] Failed to parse maps directory {mapsDirectoryPath}: {ex.Message}");
-                return [];
+                Log($"[GetConfiguredMaps] Failed to read maps.json at {mapsConfigPath}: {ex.Message}");
+                return defaultMapPool;
             }
         }
 

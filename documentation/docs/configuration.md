@@ -50,6 +50,23 @@ There are two ways to create an admin for MatchZy; you can choose the most conve
 ### Configuring MatchZy Settings (ConVars)
 Again, inside `csgo/cfg/MatchZy`, a file named `config.cfg` should be present. This file is executed whenever the plugin is loaded. If you make any changes in this file and want to reload the config, simply execute `exec MatchZy/config.cfg` command on the server.
 
+### Configuring Map Choices
+Inside `csgo/cfg/MatchZy`, a file named `maps.json` can be used to control which maps are preferred by the `.map` command. MatchZy checks this configured list first and only falls back to exact map validation if there are no matches in `maps.json`.
+
+```json
+[
+    "de_ancient",
+    "de_anubis",
+    "de_dust2",
+    "de_inferno",
+    "de_mirage",
+    "de_nuke",
+    "de_overpass",
+    "de_train",
+    "de_vertigo"
+]
+```
+
 ####`matchzy_knife_enabled_default`
 :   Whether knife round is enabled by default or not. This is the default value, but knife can be toggled by [admins](#creating-admins) using .roundknife command.<br>**`Default: true`**
 
