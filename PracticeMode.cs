@@ -1044,11 +1044,7 @@ namespace MatchZy
             // disable noclip on spawn -- all no clipping functionality is handled by the plugin!
             // Movement adjustments are consistent with cs2-noclip.
             CBasePlayerPawn pawn = player!.PlayerPawn.Value!;
-            if (pawn.MoveType == MoveType_t.MOVETYPE_NOCLIP) {
-                pawn.MoveType = MoveType_t.MOVETYPE_WALK;
-                pawn.ActualMoveType = MoveType_t.MOVETYPE_WALK;
-                Utilities.SetStateChanged(pawn, "CBaseEntity", "m_MoveType");
-            }
+            pawn.ResetNoclipToWalk();
 
             if (matchStarted && (matchzyTeam1.coach.Contains(player!) || matchzyTeam2.coach.Contains(player!)))
             {
