@@ -1766,6 +1766,7 @@ namespace MatchZy
                 }
             }
             player!.PlayerPawn.Value!.Teleport(teamSpawns[farthestIndex].PlayerPosition, teamSpawns[farthestIndex].PlayerAngle, new Vector(0, 0, 0));
+            player!.PlayerPawn.Value!.ResetNoclipToWalk();
         }
 
         private bool TryTeleportPlayerToSpawn(CCSPlayerController player, byte teamNum, int spawnIndex, out int spawnCount)
@@ -1776,6 +1777,7 @@ namespace MatchZy
             if (spawnIndex < 0 || spawnIndex >= spawnCount) return false;
 
             player.PlayerPawn.Value!.Teleport(teamSpawns[spawnIndex].PlayerPosition, teamSpawns[spawnIndex].PlayerAngle, new Vector(0, 0, 0));
+            player.PlayerPawn.Value!.ResetNoclipToWalk();
             return true;
         }
 
@@ -1804,6 +1806,7 @@ namespace MatchZy
             if (closestIndex < 0) return false;
 
             player.PlayerPawn.Value!.Teleport(teamSpawns[closestIndex].PlayerPosition, teamSpawns[closestIndex].PlayerAngle, new Vector(0, 0, 0));
+            player.PlayerPawn.Value!.ResetNoclipToWalk();
             return true;
         }
 
