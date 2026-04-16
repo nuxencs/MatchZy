@@ -100,6 +100,7 @@
     "matchzy.pm.indexlastgrenade": "Индекс последней брошенной гранаты: {0}",
     "matchzy.pm.loadnadenotfound": "Граната не найдена! Использование: .loadnade <имя>",
     "matchzy.pm.backtonumber": "Использование: !back <число> (Вы бросили до сих пор {green}{0}{default} гранат)",
+    "matchzy.pm.backatoldest": "Already at oldest grenade in history.",
     "matchzy.pm.throwindextonumber": "Использование: !throwindex <число> (Вы бросили до сих пор {green}{0}{default} гранат)",
     "matchzy.pm.savepos": "Позиция сохранена",
     "matchzy.pm.loadpos": "Позиция загружена",

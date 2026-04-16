@@ -119,6 +119,7 @@ namespace MatchZy
     {
         int maxLastGrenadesSavedLimit = 512;
         Dictionary<int, List<GrenadeThrownData>> lastGrenadesData = new();
+        Dictionary<int, int> lastGrenadeBackCursor = new();
         Dictionary<int, Dictionary<string, GrenadeThrownData>> nadeSpecificLastGrenadeData = new();
         Dictionary<int, DateTime> lastGrenadeThrownTime = new();
         Dictionary<int, PlayerPracticeTimer> playerTimers = new();
@@ -1304,6 +1305,7 @@ namespace MatchZy
                     {
                         positionNumber -= 1;
                         lastGrenadesData[userId][positionNumber].LoadPosition(player);
+                        lastGrenadeBackCursor[userId] = positionNumber;
                         // PrintToPlayerChat(player, $"Teleported to grenade of history position: {positionNumber+1}/{lastGrenadesData[userId].Count}");
                         PrintToPlayerChat(player, Localizer["matchzy.pm.tptogrenade", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
                     }
@@ -1317,9 +1319,30 @@ namespace MatchZy
             }
             else
             {
-                int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
-                // ReplyToUserCommand(player, $"Usage: !back <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.backtonumber", thrownCount]);
+                if (!lastGrenadesData.ContainsKey(userId) || lastGrenadesData[userId].Count <= 0)
+                {
+                    PrintToPlayerChat(player, Localizer["matchzy.pm.notthrownnade"]);
+                    return;
+                }
+                int count = lastGrenadesData[userId].Count;
+                int cursor;
+                if (!lastGrenadeBackCursor.TryGetValue(userId, out cursor))
+                {
+                    cursor = count - 1;
+                }
+                else if (cursor > 0)
+                {
+                    cursor -= 1;
+                }
+                else
+                {
+                    PrintToPlayerChat(player, Localizer["matchzy.pm.backatoldest"]);
+                    return;
+                }
+                lastGrenadeBackCursor[userId] = cursor;
+                lastGrenadesData[userId][cursor].LoadPosition(player);
+                // PrintToPlayerChat(player, $"Teleported to grenade of history position: {cursor+1}/{count}");
+                PrintToPlayerChat(player, Localizer["matchzy.pm.tptogrenade", $"{cursor + 1}/{count}"]);
             }
         }
 
@@ -1499,24 +1522,15 @@ namespace MatchZy
                 return;
             }
             lastGrenadesData[userId].Last().LoadPosition(player);
+            lastGrenadeBackCursor[userId] = lastGrenadesData[userId].Count - 1;
         }
 
         [ConsoleCommand("css_back", "Teleports to the provided position in grenade thrown history")]
         public void OnBackCommand(CCSPlayerController? player, CommandInfo command)
         {
             if (!isPractice || player == null || !player.UserId.HasValue) return;
-            if (command.ArgCount >= 2) 
-            {
-                string commandArg = command.ArgByIndex(1);
-                HandleBackCommand(player, commandArg);
-            }
-            else 
-            {
-                int userId = player!.UserId!.Value;
-                int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
-                // ReplyToUserCommand(player, $"Usage: !back <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.backtonumber", thrownCount]);
-            }      
+            string commandArg = command.ArgCount >= 2 ? command.ArgByIndex(1) : string.Empty;
+            HandleBackCommand(player, commandArg);
         }
 
         [ConsoleCommand("css_throwidx", "Throws grenade of provided position in grenade thrown history")]

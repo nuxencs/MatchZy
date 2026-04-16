@@ -108,6 +108,7 @@
   "matchzy.pm.indexlastgrenade": "上次扔出的手雷編號為：{0}",
   "matchzy.pm.loadnadenotfound": "Nade 未找到！使用示例: .loadnade <name>",
   "matchzy.pm.backtonumber": "使用示例: !back <number> (你目前為止已扔出 {green}{0}{default} 個手雷)",
+  "matchzy.pm.backatoldest": "Already at oldest grenade in history.",
   "matchzy.pm.throwindextonumber": "使用示例: !throwindex <number> (你目前為止已扔出 {green}{0}{default} 個手雷)",
   "matchzy.pm.savepos": "位置已儲存",
   "matchzy.pm.loadpos": "位置已載入",

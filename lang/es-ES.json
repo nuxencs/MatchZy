@@ -108,6 +108,7 @@
   "matchzy.pm.indexlastgrenade": "Índice de la última granada tirada: {0}",
   "matchzy.pm.loadnadenotfound": "¡Granada no encontrada! Uso: .loadnade <nombre>",
   "matchzy.pm.backtonumber": "Uso: !back <número> (Has tirado {green}{0}{default} granadas hasta ahora)",
+  "matchzy.pm.backatoldest": "Already at oldest grenade in history.",
   "matchzy.pm.throwindextonumber": "Uso: !throwindex <número> (Has tirado {green}{0}{default} granadas hasta ahora)",
   "matchzy.pm.savepos": "Posición guardada",
   "matchzy.pm.loadpos": "Posición cargada",

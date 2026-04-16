@@ -104,6 +104,7 @@ public partial class MatchZy
             }
             noFlashList.Remove(userId);
             lastGrenadesData.Remove(userId);
+            lastGrenadeBackCursor.Remove(userId);
             nadeSpecificLastGrenadeData.Remove(userId);
 
             return HookResult.Continue;
@@ -253,6 +254,7 @@ public partial class MatchZy
 
                 nadeSpecificLastGrenadeData[client][nadeType] = lastGrenadeThrown;
                 lastGrenadesData[client].Add(lastGrenadeThrown);
+                lastGrenadeBackCursor.Remove(client);
 
                 if (maxLastGrenadesSavedLimit != 0 && lastGrenadesData[client].Count > maxLastGrenadesSavedLimit)
                 {

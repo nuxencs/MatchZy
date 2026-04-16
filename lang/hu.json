@@ -100,6 +100,7 @@
   "matchzy.pm.indexlastgrenade": "Az utoljára eldobott gránát indexe: {0}",
   "matchzy.pm.loadnadenotfound": "A nade nem található! Használat: .loadnade <név>",
   "matchzy.pm.backtonumber": "Használat: !back <szám> (Eddig {green}{0}{default} gránátot dobtál el)",
+  "matchzy.pm.backatoldest": "Already at oldest grenade in history.",
   "matchzy.pm.throwindextonumber": "Használat: !throwindex <szám> (Eddig {green}{0}{default} gránátot dobtál el)",
   "matchzy.rs.minreadyplayers": "Legalább {green}{0}{default} készen álló játékosnak kell lennie a szerveren.",
   "matchzy.rs.forcereadiedby": "A csapatodat kényszerrel készenlévő állapotba állította: {green}{0}{default}",
