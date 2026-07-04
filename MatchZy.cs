@@ -253,6 +253,7 @@ namespace MatchZy
                 // UpdatePlayersMap();
             });
             RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawnedHandler);
+            RegisterListener<Listeners.OnPlayerButtonsChanged>(OnPlayerButtonsChangedHandler);
             RegisterEventHandler<EventPlayerTeam>((@event, info) => {
                 CCSPlayerController? player = @event.Userid;
                 if (!IsPlayerValid(player)) return HookResult.Continue;

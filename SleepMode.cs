@@ -22,6 +22,7 @@ namespace MatchZy
             matchStarted = false;
             isSideSelectionPhase = false;
             isMatchLive = false;
+            HideSpawnMarkers();
 
             var absolutePath = Path.Join(Server.GameDirectory + "/csgo/cfg", sleepCfgPath);
 

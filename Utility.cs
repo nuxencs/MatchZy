@@ -1146,6 +1146,9 @@ namespace MatchZy
 
         public void HandlePostRoundStartEvent(EventRoundStart @event)
         {
+            // Redraw the spawn markers each round start so they reliably appear in practice (the
+            // warmup restart on prac start would otherwise wipe beams drawn too early).
+            if (isPractice && spawnMarkersEnabled) ShowSpawnMarkers();
             if (isDryRun) RandomizeSpawns();
             if (!matchStarted) return;
             playerHasTakenDamage = false;
@@ -1418,7 +1421,7 @@ namespace MatchZy
             if (matchStarted || (!isPractice && !isSleep)) return;
             ExecUnpracCommands();
             ResetMatch();
-            RemoveSpawnBeams();
+            HideSpawnMarkers();
             Server.PrintToChatAll($"{chatPrefix} Match mode loaded!");
         }
 

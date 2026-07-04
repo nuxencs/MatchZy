@@ -143,6 +143,21 @@ namespace MatchZy
 
         public List<int> noFlashList = new List<int>();
 
+        // Interactable spawn markers: flat outlined squares drawn on the ground at each competitive
+        // spawn (toggled by .showspawns / .hidespawns). While active, pressing the interact key
+        // (+use) while looking at (or standing on) a marker teleports the player to that spawn.
+        public bool spawnMarkersEnabled = false;   // desired on/off state (default on in prac; .hidespawns turns it off)
+        public bool spawnMarkersActive = false;     // whether markers are currently drawn / interaction is live
+        public List<Position> activeSpawnMarkers = new();
+        private readonly Dictionary<int, DateTime> lastSpawnMarkerUseTime = new();
+        private const float spawnMarkerHalfSize = 20f;           // half-length of the square marker's side (40x40)
+        private const float spawnMarkerZOffset = 2f;             // lift the outline just above the floor
+        private const float spawnMarkerBoxHeight = 0f;           // vertical edges so beams don't billboard flat (0 = flat square)
+        private const float spawnMarkerInteractMargin = 16f;     // player-hull slack around the square
+        private const float spawnMarkerInteractRange = 100f;     // max distance you can look-and-interact from
+        private const float spawnMarkerStandHeight = 64f;        // vertical tolerance when standing on the marker
+        private const double spawnMarkerCooldownSeconds = 0.3;   // debounce repeated interacts
+
         public static Dictionary<byte, List<Position>> GetEmptySpawnsData()
         {
             return new Dictionary<byte, List<Position>>
@@ -175,8 +190,14 @@ namespace MatchZy
                 Server.ExecuteCommand("""mp_t_default_grenades "weapon_molotov weapon_hegrenade weapon_smokegrenade weapon_flashbang weapon_decoy"; mp_t_default_primary "weapon_ak47"; mp_warmup_online_enabled "true"; mp_warmup_pausetimer "1"; mp_warmup_start; bot_quota_mode fill; mp_solid_teammates 2; mp_autoteambalance false; mp_teammates_are_enemies false; buddha 1; buddha_ignore_bots 1; buddha_reset_hp 100;""");
             }
             GetSpawns();
+            HideSpawnMarkers();
+            // Enable markers by default. The actual draw happens on the next round_start (fired by the
+            // warmup restart), which lands after the restart so the beams aren't immediately wiped.
+            // Fallback draw in case no round_start fires (e.g. already in warmup); skips if already drawn.
+            spawnMarkersEnabled = true;
+            AddTimer(3.0f, () => { if (isPractice && spawnMarkersEnabled && !spawnMarkersActive) ShowSpawnMarkers(); });
             PrintToAllChat($"Practice mode loaded!");
-            Server.PrintToChatAll($" {ChatColors.Green}Spawns: {ChatColors.Default}.spawn, .ctspawn, .tspawn, .bestspawn, .worstspawn");
+            Server.PrintToChatAll($" {ChatColors.Green}Spawns: {ChatColors.Default}.spawn, .ctspawn, .tspawn, .bestspawn, .worstspawn — markers shown by default (press {ChatColors.Green}Use{ChatColors.Default} to teleport, .hidespawns to hide)");
             Server.PrintToChatAll($" {ChatColors.Green}Bots: {ChatColors.Default}.bot, .nobots, .crouchbot, .boost, .crouchboost");
             Server.PrintToChatAll($" {ChatColors.Green}Nades: {ChatColors.Default}.loadnade, .savenade, .importnade, .listnades");
             Server.PrintToChatAll($" {ChatColors.Green}Nade Throw: {ChatColors.Default}.rethrow, .throwindex <index>, .lastindex, .delay <number>");
@@ -191,10 +212,21 @@ namespace MatchZy
             // Resetting spawn data to avoid any glitches
             spawnsData = GetEmptySpawnsData();
 
-            int minPriority = 1;
+            spawnsData[(byte)CsTeam.CounterTerrorist] = GetTeamSpawns("info_player_counterterrorist");
+            spawnsData[(byte)CsTeam.Terrorist] = GetTeamSpawns("info_player_terrorist");
 
-            var spawnsct = Utilities.FindAllEntitiesByDesignerName<SpawnPoint>("info_player_counterterrorist");
-            foreach (var spawn in spawnsct)
+            GetCoachSpawns();
+        }
+
+        // Returns a team's enabled spawns at that team's OWN lowest priority value (the competitive
+        // spawns). Priority is computed per team because CT and T can differ -- e.g. on de_ancient,
+        // where reusing CT's minimum for T dropped every T spawn.
+        private List<Position> GetTeamSpawns(string designerName)
+        {
+            var spawns = Utilities.FindAllEntitiesByDesignerName<SpawnPoint>(designerName).ToList();
+
+            int minPriority = int.MaxValue;
+            foreach (var spawn in spawns)
             {
                 if (spawn.IsValid && spawn.Enabled && spawn.Priority < minPriority)
                 {
@@ -202,24 +234,15 @@ namespace MatchZy
                 }
             }
 
-            foreach (var spawn in spawnsct)
+            var result = new List<Position>();
+            foreach (var spawn in spawns)
             {
                 if (spawn.IsValid && spawn.Enabled && spawn.Priority == minPriority)
                 {
-                    spawnsData[(byte)CsTeam.CounterTerrorist].Add(new Position(spawn.CBodyComponent?.SceneNode?.AbsOrigin!, spawn.CBodyComponent?.SceneNode?.AbsRotation!));
+                    result.Add(new Position(spawn.CBodyComponent?.SceneNode?.AbsOrigin!, spawn.CBodyComponent?.SceneNode?.AbsRotation!));
                 }
             }
-
-            var spawnst = Utilities.FindAllEntitiesByDesignerName<SpawnPoint>("info_player_terrorist");
-            foreach (var spawn in spawnst)
-            {
-                if (spawn.IsValid && spawn.Enabled && spawn.Priority == minPriority)
-                {
-                    spawnsData[(byte)CsTeam.Terrorist].Add(new Position(spawn.CBodyComponent?.SceneNode?.AbsOrigin!, spawn.CBodyComponent?.SceneNode?.AbsRotation!));
-                }
-            }
-
-            GetCoachSpawns();
+            return result;
         }
 
         private void HandleSpawnCommand(CCSPlayerController? player, string commandArg, byte teamNum, string command)
@@ -717,24 +740,70 @@ namespace MatchZy
             }
         }
 
-        public void ShowSpawnBeam(Position spawn, Color color)
+        // Draws an axis-aligned square marker centered on the spawn. CS2 beams always billboard
+        // (rotate to face the camera), so a purely flat outline twists as you move. We give it a
+        // shallow height (spawnMarkerBoxHeight) turning it into a low square cage -- a near-vertical
+        // edge always faces the viewer, so it reads as a stable marker instead of twisting lines.
+        // Set spawnMarkerBoxHeight to 0 for a flat square.
+        public void ShowSpawnMarker(Position spawn, Color color)
+        {
+            Vector center = spawn.PlayerPosition;
+            float h = spawnMarkerHalfSize;
+            float z = center.Z + spawnMarkerZOffset;
+
+            Vector nw = new Vector(center.X - h, center.Y + h, z);
+            Vector ne = new Vector(center.X + h, center.Y + h, z);
+            Vector se = new Vector(center.X + h, center.Y - h, z);
+            Vector sw = new Vector(center.X - h, center.Y - h, z);
+
+            // Bottom square.
+            DrawSpawnMarkerLine(nw, ne, color);
+            DrawSpawnMarkerLine(ne, se, color);
+            DrawSpawnMarkerLine(se, sw, color);
+            DrawSpawnMarkerLine(sw, nw, color);
+
+            if (spawnMarkerBoxHeight <= 0f) return;
+
+            float top = z + spawnMarkerBoxHeight;
+            Vector nwT = new Vector(nw.X, nw.Y, top);
+            Vector neT = new Vector(ne.X, ne.Y, top);
+            Vector seT = new Vector(se.X, se.Y, top);
+            Vector swT = new Vector(sw.X, sw.Y, top);
+
+            // Top square.
+            DrawSpawnMarkerLine(nwT, neT, color);
+            DrawSpawnMarkerLine(neT, seT, color);
+            DrawSpawnMarkerLine(seT, swT, color);
+            DrawSpawnMarkerLine(swT, nwT, color);
+
+            // Vertical edges.
+            DrawSpawnMarkerLine(nw, nwT, color);
+            DrawSpawnMarkerLine(ne, neT, color);
+            DrawSpawnMarkerLine(se, seT, color);
+            DrawSpawnMarkerLine(sw, swT, color);
+        }
+
+        // Draws a single beam line segment between two world positions (one edge of a marker).
+        private void DrawSpawnMarkerLine(Vector start, Vector end, Color color)
         {
             CBeam? beam = Utilities.CreateEntityByName<CBeam>("beam");
             if (beam == null)
             {
-                Log($"Failed to create beam for the spawn");
+                Log($"Failed to create beam for the spawn marker");
                 return;
             }
 
             beam.LifeState = 1;
-            beam.Width = 5;
+            beam.Width = 1.5f;        // thin, so the unavoidable billboarding reads as a line, not a wall
+            beam.Amplitude = 0f;      // no noise wobble -> straight edge
+            beam.FrameRate = 0f;      // no texture scroll
             beam.Render = color;
 
-            beam.EndPos.X = spawn.PlayerPosition.X;
-            beam.EndPos.Y = spawn.PlayerPosition.Y;
-            beam.EndPos.Z = spawn.PlayerPosition.Z + 100.0f;
+            beam.EndPos.X = end.X;
+            beam.EndPos.Y = end.Y;
+            beam.EndPos.Z = end.Z;
 
-            beam.Teleport(spawn.PlayerPosition, new QAngle(0, 0, 0), new Vector(0, 0, 0));
+            beam.Teleport(start, new QAngle(0, 0, 0), new Vector(0, 0, 0));
 
             beam.DispatchSpawn();
         }
@@ -1734,23 +1803,135 @@ namespace MatchZy
         public void OnShowSpawnsCommand(CCSPlayerController? player, CommandInfo? command)
         {
             if (!isPractice || !IsPlayerValid(player)) return;
-            RemoveSpawnBeams();
+            spawnMarkersEnabled = true;
+            ShowSpawnMarkers();
+        }
+
+        // Draws markers for every competitive spawn (CT blue, T orange) and enables the
+        // interact-to-teleport behaviour. Shown automatically on practice start and via .showspawns.
+        public void ShowSpawnMarkers()
+        {
+            HideSpawnMarkers();
             if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             foreach (Position spawn in spawnsData[(byte)CsTeam.CounterTerrorist])
             {
-                ShowSpawnBeam(spawn, Color.Blue);
+                ShowSpawnMarker(spawn, Color.Blue);
+                activeSpawnMarkers.Add(spawn);
             }
             foreach (Position spawn in spawnsData[(byte)CsTeam.Terrorist])
             {
-                ShowSpawnBeam(spawn, Color.Orange);
+                ShowSpawnMarker(spawn, Color.Orange);
+                activeSpawnMarkers.Add(spawn);
             }
+            spawnMarkersActive = activeSpawnMarkers.Count > 0;
         }
 
         [ConsoleCommand("css_hidespawns", "Hides the highlighted spawns")]
         public void OnHideSpawnsCommand(CCSPlayerController? player, CommandInfo? command)
         {
             if (!isPractice || !IsPlayerValid(player)) return;
+            spawnMarkersEnabled = false;
+            HideSpawnMarkers();
+        }
+
+        // Removes all spawn marker outlines and disables the interact-to-teleport behaviour.
+        public void HideSpawnMarkers()
+        {
             RemoveSpawnBeams();
+            activeSpawnMarkers.Clear();
+            lastSpawnMarkerUseTime.Clear();
+            spawnMarkersActive = false;
+        }
+
+        // Fired whenever a player's button state changes. While spawn markers are shown, pressing
+        // the interact key (+use) on a marker teleports the player to that spawn (exact position
+        // and angle). Edge-triggered via the "pressed" mask, so holding +use only fires once.
+        public void OnPlayerButtonsChangedHandler(CCSPlayerController player, PlayerButtons pressed, PlayerButtons released)
+        {
+            if (!spawnMarkersActive || !isPractice) return;
+            if ((pressed & PlayerButtons.Use) == 0) return;
+            if (!IsPlayerValid(player) || !player.PawnIsAlive) return;
+
+            int userId = player.UserId ?? -1;
+            if (userId >= 0 && lastSpawnMarkerUseTime.TryGetValue(userId, out DateTime last)
+                && (DateTime.Now - last).TotalSeconds < spawnMarkerCooldownSeconds)
+            {
+                return;
+            }
+
+            CCSPlayerPawn? pawn = player.PlayerPawn.Value;
+            Vector? feet = pawn?.CBodyComponent?.SceneNode?.AbsOrigin;
+            if (pawn == null || feet == null) return;
+
+            // Aim ray from the player's eyes.
+            Vector eye = new Vector(feet.X, feet.Y, feet.Z + pawn.ViewOffset.Z);
+            Vector forward = AngleForward(pawn.EyeAngles);
+
+            // Prefer the marker the player is looking at (best-aimed = smallest distance from the aim
+            // ray), and only fall back to a marker they are standing on if they aren't looking at any.
+            // Ranking look and stand separately avoids a marker underfoot (distance ~0) always winning
+            // over the one the player is actually aiming at.
+            float reach = spawnMarkerHalfSize + spawnMarkerInteractMargin;
+            float reachSq = reach * reach;
+            float rangeSq = spawnMarkerInteractRange * spawnMarkerInteractRange;
+            int lookIndex = -1;
+            float lookBestPerpSq = float.MaxValue;
+            int standIndex = -1;
+            float standBestDistanceSq = float.MaxValue;
+            for (int i = 0; i < activeSpawnMarkers.Count; i++)
+            {
+                Vector spawnPosition = activeSpawnMarkers[i].PlayerPosition;
+
+                float dx = feet.X - spawnPosition.X;
+                float dy = feet.Y - spawnPosition.Y;
+                float dz = feet.Z - spawnPosition.Z;
+                float distanceSq = dx * dx + dy * dy + dz * dz;
+                if (distanceSq > rangeSq) continue;
+
+                if (Math.Abs(dx) <= reach && Math.Abs(dy) <= reach && Math.Abs(dz) <= spawnMarkerStandHeight
+                    && distanceSq < standBestDistanceSq)
+                {
+                    standBestDistanceSq = distanceSq;
+                    standIndex = i;
+                }
+
+                float ex = spawnPosition.X - eye.X;
+                float ey = spawnPosition.Y - eye.Y;
+                float ez = spawnPosition.Z - eye.Z;
+                float proj = ex * forward.X + ey * forward.Y + ez * forward.Z;
+                if (proj > 0f)
+                {
+                    // Perpendicular distance from the spawn centre to the aim ray.
+                    float px = eye.X + forward.X * proj - spawnPosition.X;
+                    float py = eye.Y + forward.Y * proj - spawnPosition.Y;
+                    float pz = eye.Z + forward.Z * proj - spawnPosition.Z;
+                    float perpSq = px * px + py * py + pz * pz;
+                    if (perpSq <= reachSq && perpSq < lookBestPerpSq)
+                    {
+                        lookBestPerpSq = perpSq;
+                        lookIndex = i;
+                    }
+                }
+            }
+
+            int nearestIndex = lookIndex >= 0 ? lookIndex : standIndex;
+            if (nearestIndex < 0) return;
+
+            if (userId >= 0) lastSpawnMarkerUseTime[userId] = DateTime.Now;
+            activeSpawnMarkers[nearestIndex].Teleport(player);
+            pawn.ResetNoclipToWalk();
+        }
+
+        // Forward unit vector for a view angle (Source AngleVectors: pitch = X, yaw = Y, degrees).
+        private static Vector AngleForward(QAngle angle)
+        {
+            double pitch = angle.X * Math.PI / 180.0;
+            double yaw = angle.Y * Math.PI / 180.0;
+            float cosPitch = (float)Math.Cos(pitch);
+            return new Vector(
+                cosPitch * (float)Math.Cos(yaw),
+                cosPitch * (float)Math.Sin(yaw),
+                -(float)Math.Sin(pitch));
         }
 
         public void TeleportPlayerToBestSpawn(CCSPlayerController player, byte teamNum)
