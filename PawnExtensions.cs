@@ -50,6 +50,8 @@ public static class PawnExtensions
         // Keep yaw (Y); zero pitch (X) and roll (Z) so the model stands upright.
         // m_angRotation is the networked local rotation the client renders;
         // m_angAbsRotation is flattened too as belt-and-suspenders.
+        // If a frozen boost bot ever still tilts (the Teleport write winning on
+        // the same tick), wrap the block below in Server.NextFrame(...).
         sceneNode.Rotation.X = 0f;
         sceneNode.Rotation.Y = angle.Y;
         sceneNode.Rotation.Z = 0f;
