@@ -143,19 +143,20 @@ namespace MatchZy
 
         public List<int> noFlashList = new List<int>();
 
-        // Interactable spawn markers: flat outlined squares drawn on the ground at each competitive
-        // spawn (toggled by .showspawns / .hidespawns). While active, pressing the interact key
-        // (+use) while looking at (or standing on) a marker teleports the player to that spawn.
+        // Interactable spawn markers: flat outlined squares drawn at each competitive spawn
+        // (toggled by .showspawns / .hidespawns). While active, pressing the interact key (+use)
+        // while looking at a marker teleports the player to that spawn.
         public bool spawnMarkersEnabled = false;   // desired on/off state (default on in prac; .hidespawns turns it off)
         public bool spawnMarkersActive = false;     // whether markers are currently drawn / interaction is live
         public List<Position> activeSpawnMarkers = new();
         private readonly Dictionary<int, DateTime> lastSpawnMarkerUseTime = new();
         private const float spawnMarkerHalfSize = 20f;           // half-length of the square marker's side (40x40)
         private const float spawnMarkerZOffset = 2f;             // lift the outline just above the floor
-        private const float spawnMarkerBoxHeight = 0f;           // vertical edges so beams don't billboard flat (0 = flat square)
-        private const float spawnMarkerInteractMargin = 16f;     // player-hull slack around the square
+        private const float spawnMarkerInteractMargin = 16f;     // player-hull slack around the square (aim reach)
         private const float spawnMarkerInteractRange = 100f;     // max distance you can look-and-interact from
-        private const float spawnMarkerStandHeight = 64f;        // vertical tolerance when standing on the marker
+        private const float spawnMarkerStandHeight = 72f;        // vertical tolerance for "the spawn I'm standing on"
+                                                                 // (kept generous so an elevated spawn origin is still
+                                                                 // recognised as underfoot and excluded as a target)
         private const double spawnMarkerCooldownSeconds = 0.3;   // debounce repeated interacts
 
         public static Dictionary<byte, List<Position>> GetEmptySpawnsData()
@@ -740,11 +741,7 @@ namespace MatchZy
             }
         }
 
-        // Draws an axis-aligned square marker centered on the spawn. CS2 beams always billboard
-        // (rotate to face the camera), so a purely flat outline twists as you move. We give it a
-        // shallow height (spawnMarkerBoxHeight) turning it into a low square cage -- a near-vertical
-        // edge always faces the viewer, so it reads as a stable marker instead of twisting lines.
-        // Set spawnMarkerBoxHeight to 0 for a flat square.
+        // Draws a flat axis-aligned square outline centered on the spawn, lifted just above the floor.
         public void ShowSpawnMarker(Position spawn, Color color)
         {
             Vector center = spawn.PlayerPosition;
@@ -756,31 +753,10 @@ namespace MatchZy
             Vector se = new Vector(center.X + h, center.Y - h, z);
             Vector sw = new Vector(center.X - h, center.Y - h, z);
 
-            // Bottom square.
             DrawSpawnMarkerLine(nw, ne, color);
             DrawSpawnMarkerLine(ne, se, color);
             DrawSpawnMarkerLine(se, sw, color);
             DrawSpawnMarkerLine(sw, nw, color);
-
-            if (spawnMarkerBoxHeight <= 0f) return;
-
-            float top = z + spawnMarkerBoxHeight;
-            Vector nwT = new Vector(nw.X, nw.Y, top);
-            Vector neT = new Vector(ne.X, ne.Y, top);
-            Vector seT = new Vector(se.X, se.Y, top);
-            Vector swT = new Vector(sw.X, sw.Y, top);
-
-            // Top square.
-            DrawSpawnMarkerLine(nwT, neT, color);
-            DrawSpawnMarkerLine(neT, seT, color);
-            DrawSpawnMarkerLine(seT, swT, color);
-            DrawSpawnMarkerLine(swT, nwT, color);
-
-            // Vertical edges.
-            DrawSpawnMarkerLine(nw, nwT, color);
-            DrawSpawnMarkerLine(ne, neT, color);
-            DrawSpawnMarkerLine(se, seT, color);
-            DrawSpawnMarkerLine(sw, swT, color);
         }
 
         // Draws a single beam line segment between two world positions (one edge of a marker).
@@ -794,7 +770,7 @@ namespace MatchZy
             }
 
             beam.LifeState = 1;
-            beam.Width = 1.5f;        // thin, so the unavoidable billboarding reads as a line, not a wall
+            beam.Width = 1f;          // thin, so the unavoidable billboarding reads as a line, not a wall
             beam.Amplitude = 0f;      // no noise wobble -> straight edge
             beam.FrameRate = 0f;      // no texture scroll
             beam.Render = color;
@@ -1867,19 +1843,41 @@ namespace MatchZy
             Vector eye = new Vector(feet.X, feet.Y, feet.Z + pawn.ViewOffset.Z);
             Vector forward = AngleForward(pawn.EyeAngles);
 
-            // Prefer the marker the player is looking at (best-aimed = smallest distance from the aim
-            // ray), and only fall back to a marker they are standing on if they aren't looking at any.
-            // Ranking look and stand separately avoids a marker underfoot (distance ~0) always winning
-            // over the one the player is actually aiming at.
             float reach = spawnMarkerHalfSize + spawnMarkerInteractMargin;
             float reachSq = reach * reach;
             float rangeSq = spawnMarkerInteractRange * spawnMarkerInteractRange;
-            int lookIndex = -1;
-            float lookBestPerpSq = float.MaxValue;
+
+            // First find the marker the player is currently standing on (if any). We exclude it as a
+            // teleport target: standing on a spawn puts you at distance ~0 from it, so it would always
+            // win and every interaction would just teleport you back onto the spawn you're already on.
+            // Ignoring it lets you aim at a neighbouring spawn and teleport there instead.
             int standIndex = -1;
             float standBestDistanceSq = float.MaxValue;
             for (int i = 0; i < activeSpawnMarkers.Count; i++)
             {
+                Vector spawnPosition = activeSpawnMarkers[i].PlayerPosition;
+                float dx = feet.X - spawnPosition.X;
+                float dy = feet.Y - spawnPosition.Y;
+                float dz = feet.Z - spawnPosition.Z;
+                if (Math.Abs(dx) <= reach && Math.Abs(dy) <= reach && Math.Abs(dz) <= spawnMarkerStandHeight)
+                {
+                    float distanceSq = dx * dx + dy * dy + dz * dz;
+                    if (distanceSq < standBestDistanceSq)
+                    {
+                        standBestDistanceSq = distanceSq;
+                        standIndex = i;
+                    }
+                }
+            }
+
+            // Then pick the marker the player is aiming at (smallest perpendicular distance from the
+            // aim ray), skipping the one underfoot. No aim target -> no-op.
+            int lookIndex = -1;
+            float lookBestPerpSq = float.MaxValue;
+            for (int i = 0; i < activeSpawnMarkers.Count; i++)
+            {
+                if (i == standIndex) continue;
+
                 Vector spawnPosition = activeSpawnMarkers[i].PlayerPosition;
 
                 float dx = feet.X - spawnPosition.X;
@@ -1887,13 +1885,6 @@ namespace MatchZy
                 float dz = feet.Z - spawnPosition.Z;
                 float distanceSq = dx * dx + dy * dy + dz * dz;
                 if (distanceSq > rangeSq) continue;
-
-                if (Math.Abs(dx) <= reach && Math.Abs(dy) <= reach && Math.Abs(dz) <= spawnMarkerStandHeight
-                    && distanceSq < standBestDistanceSq)
-                {
-                    standBestDistanceSq = distanceSq;
-                    standIndex = i;
-                }
 
                 float ex = spawnPosition.X - eye.X;
                 float ey = spawnPosition.Y - eye.Y;
@@ -1914,11 +1905,10 @@ namespace MatchZy
                 }
             }
 
-            int nearestIndex = lookIndex >= 0 ? lookIndex : standIndex;
-            if (nearestIndex < 0) return;
+            if (lookIndex < 0) return;
 
             if (userId >= 0) lastSpawnMarkerUseTime[userId] = DateTime.Now;
-            activeSpawnMarkers[nearestIndex].Teleport(player);
+            activeSpawnMarkers[lookIndex].Teleport(player);
             pawn.ResetNoclipToWalk();
         }
 
