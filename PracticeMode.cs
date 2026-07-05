@@ -1085,11 +1085,14 @@ namespace MatchZy
                     // Bot has been spawned, but we didn't spawn it, so kick it.
                     // This most often happens when a player changes team with bot_quota_mode set to fill
                     // Extra bots from bot_add are already handled in SpawnBot
-                    // Delay this for a few seconds to prevent crashes
-                    Log($"Kicking bot {player.PlayerName} due to erroneous spawning");
+                    // Delay this for a few seconds to prevent crashes. Capture the name now: by the time
+                    // the timer fires the bot's controller can already be freed, and reading PlayerName
+                    // off the stale handle throws "Schema target points to null".
+                    string botName = player.PlayerName;
+                    Log($"Kicking bot {botName} due to erroneous spawning");
                     AddTimer(2.5f, () =>
                     {
-                        Server.ExecuteCommand($"bot_kick {player.PlayerName}");
+                        Server.ExecuteCommand($"bot_kick {botName}");
                     });
                 }
             }
