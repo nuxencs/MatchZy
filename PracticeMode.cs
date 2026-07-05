@@ -151,12 +151,12 @@ namespace MatchZy
         public List<Position> activeSpawnMarkers = new();
         private readonly Dictionary<int, DateTime> lastSpawnMarkerUseTime = new();
         private const float spawnMarkerHalfSize = 20f;           // half-length of the square marker's side (40x40)
-        private const float spawnMarkerZOffset = 2f;             // lift the outline just above the floor
+        private const float spawnMarkerZOffset = 8f;             // lift the outline above the floor (and shallow water,
+                                                                 // e.g. Ancient) so it isn't occluded by the water surface
         private const float spawnMarkerInteractMargin = 16f;     // player-hull slack around the square (aim reach)
         private const float spawnMarkerInteractRange = 100f;     // max distance you can look-and-interact from
-        private const float spawnMarkerStandHeight = 72f;        // vertical tolerance for "the spawn I'm standing on"
-                                                                 // (kept generous so an elevated spawn origin is still
-                                                                 // recognised as underfoot and excluded as a target)
+        private const float spawnMarkerExactRadius = 8f;         // only the spawn you're *exactly* on (just teleported,
+                                                                 // not yet moved) is excluded as a teleport target
         private const double spawnMarkerCooldownSeconds = 0.3;   // debounce repeated interacts
 
         public static Dictionary<byte, List<Position>> GetEmptySpawnsData()
@@ -1850,36 +1850,35 @@ namespace MatchZy
             float reachSq = reach * reach;
             float rangeSq = spawnMarkerInteractRange * spawnMarkerInteractRange;
 
-            // First find the marker the player is currently standing on (if any). We exclude it as a
-            // teleport target: standing on a spawn puts you at distance ~0 from it, so it would always
-            // win and every interaction would just teleport you back onto the spawn you're already on.
-            // Ignoring it lets you aim at a neighbouring spawn and teleport there instead.
-            int standIndex = -1;
-            float standBestDistanceSq = float.MaxValue;
+            // First find the marker the player is *exactly* on (if any) and exclude it as a teleport
+            // target: right after teleporting you sit at distance ~0 from that spawn, so it would always
+            // win the aim contest and re-interacting would just drop you back onto the spawn you're
+            // already on. Only an (almost) exact match counts -- step even slightly off and aiming back
+            // at it will teleport (re-centre) you, while a neighbouring spawn stays selectable throughout.
+            float exactRadiusSq = spawnMarkerExactRadius * spawnMarkerExactRadius;
+            int exactIndex = -1;
+            float exactBestDistanceSq = float.MaxValue;
             for (int i = 0; i < activeSpawnMarkers.Count; i++)
             {
                 Vector spawnPosition = activeSpawnMarkers[i].PlayerPosition;
                 float dx = feet.X - spawnPosition.X;
                 float dy = feet.Y - spawnPosition.Y;
                 float dz = feet.Z - spawnPosition.Z;
-                if (Math.Abs(dx) <= reach && Math.Abs(dy) <= reach && Math.Abs(dz) <= spawnMarkerStandHeight)
+                float distanceSq = dx * dx + dy * dy + dz * dz;
+                if (distanceSq <= exactRadiusSq && distanceSq < exactBestDistanceSq)
                 {
-                    float distanceSq = dx * dx + dy * dy + dz * dz;
-                    if (distanceSq < standBestDistanceSq)
-                    {
-                        standBestDistanceSq = distanceSq;
-                        standIndex = i;
-                    }
+                    exactBestDistanceSq = distanceSq;
+                    exactIndex = i;
                 }
             }
 
             // Then pick the marker the player is aiming at (smallest perpendicular distance from the
-            // aim ray), skipping the one underfoot. No aim target -> no-op.
+            // aim ray), skipping the one you're exactly on. No aim target -> no-op.
             int lookIndex = -1;
             float lookBestPerpSq = float.MaxValue;
             for (int i = 0; i < activeSpawnMarkers.Count; i++)
             {
-                if (i == standIndex) continue;
+                if (i == exactIndex) continue;
 
                 Vector spawnPosition = activeSpawnMarkers[i].PlayerPosition;
 
